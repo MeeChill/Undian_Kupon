@@ -20,3 +20,14 @@ model Participant {
 
   @@map("Participants")
 }
+
+model User {
+  id        Int      @id @default(autoincrement())
+  username  String   @unique
+  password  String
+  role      String   @default("scanner") // "admin" or "scanner"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("Users")
+}

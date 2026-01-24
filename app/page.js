@@ -20,6 +20,7 @@ export default async function Home() {
         <div className="card">
             <h2>Menu Cepat</h2>
             <Link href="/participants" className="btn">Tambah Peserta Baru</Link>
+            <Link href="/scan" className="btn" style={{ marginLeft: '10px', backgroundColor: '#6c5ce7' }}>Scan QR Code</Link>
             <Link href="/draw" className="btn btn-success" style={{ marginLeft: '10px' }}>Mulai Undian</Link>
         </div>
     </div>
