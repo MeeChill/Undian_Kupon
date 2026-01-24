@@ -7,7 +7,19 @@ export const dynamic = 'force-dynamic';
 async function addParticipant(formData) {
   'use server';
   const rt = parseInt(formData.get('rt'));
-  const quantity = parseInt(formData.get('quantity') || '1');
+  let quantity = parseInt(formData.get('quantity') || '1');
+  
+  // Limit max batch size
+  if (quantity > 1000) quantity = 1000;
+  
+  // Check total limit
+  const currentTotal = await prisma.participant.count();
+  if (currentTotal + quantity > 5000) {
+      // If adding this batch exceeds 5000, do not add or add only up to 5000
+      // For simplicity, we just stop if it exceeds
+      return; 
+  }
+
   const rw = 4;
   const rtStr = rt.toString().padStart(2, '0');
   const rwStr = rw.toString().padStart(2, '0');
@@ -47,6 +59,7 @@ async function addParticipant(formData) {
   });
 
   revalidatePath('/participants');
+  revalidatePath('/'); // Update dashboard stats
 }
 
 async function deleteParticipant(formData) {
@@ -54,13 +67,24 @@ async function deleteParticipant(formData) {
   const id = parseInt(formData.get('id'));
   await prisma.participant.delete({ where: { id } });
   revalidatePath('/participants');
+  revalidatePath('/');
 }
 
-async function resetAllParticipants() {
+async function resetAllParticipants(formData) {
   'use server';
-  // Delete all participants
-  await prisma.participant.deleteMany({});
+  const rtFilter = formData.get('rt');
+  
+  const whereClause = {};
+  if (rtFilter && rtFilter !== 'all') {
+      whereClause.rt = parseInt(rtFilter);
+  }
+
+  await prisma.participant.deleteMany({
+      where: whereClause
+  });
+  
   revalidatePath('/participants');
+  revalidatePath('/');
 }
 
 export default async function Participants() {
@@ -79,8 +103,8 @@ export default async function Participants() {
                     <input type="number" name="rt" required min="1" max="4" defaultValue="1" style={{ width: '100%', padding: '8px' }} />
                 </div>
                 <div style={{ flex: 1 }}>
-                    <label>Jumlah Peserta:</label><br/>
-                    <input type="number" name="quantity" required min="1" defaultValue="1" style={{ width: '100%', padding: '8px' }} />
+                    <label>Jumlah Peserta (Max 1000):</label><br/>
+                    <input type="number" name="quantity" required min="1" max="1000" defaultValue="1" style={{ width: '100%', padding: '8px' }} />
                 </div>
             </div>
             <div style={{ marginTop: '10px' }}>

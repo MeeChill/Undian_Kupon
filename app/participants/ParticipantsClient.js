@@ -1,14 +1,34 @@
 'use client';
-import Link from 'next/link';
 import { useState } from 'react';
+import Link from 'next/link';
 import ResetButton from './ResetButton';
+import Modal from '../../components/Modal';
 
 export default function ParticipantsClient({ initialParticipants, resetAction, deleteAction }) {
   const [filterRT, setFilterRT] = useState('all');
   
+  // Delete Modal State
+  const [deleteId, setDeleteId] = useState(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+
   const filteredParticipants = filterRT === 'all' 
     ? initialParticipants 
     : initialParticipants.filter(p => p.rt.toString() === filterRT);
+
+  const confirmDelete = (id) => {
+      setDeleteId(id);
+      setIsDeleteModalOpen(true);
+  };
+
+  const executeDelete = () => {
+      if (deleteId) {
+          const formData = new FormData();
+          formData.append('id', deleteId);
+          deleteAction(formData);
+          setIsDeleteModalOpen(false);
+          setDeleteId(null);
+      }
+  };
 
   return (
     <>
@@ -40,7 +60,7 @@ export default function ParticipantsClient({ initialParticipants, resetAction, d
                         </Link>
                     )}
 
-                    <ResetButton onReset={resetAction} />
+                    <ResetButton onReset={resetAction} filterRT={filterRT} />
                 </div>
             </div>
             
@@ -72,10 +92,13 @@ export default function ParticipantsClient({ initialParticipants, resetAction, d
                                 </td>
                                 <td style={{ padding: '10px' }}>
                                     <Link href={`/coupon/${p.id}`} className="btn" style={{ padding: '5px 10px', fontSize: '0.8em', marginRight: '5px', textDecoration: 'none' }}>Kupon</Link>
-                                    <form action={deleteAction} style={{ display: 'inline' }}>
-                                        <input type="hidden" name="id" value={p.id} />
-                                        <button type="submit" className="btn btn-danger" style={{ padding: '5px 10px', fontSize: '0.8em' }}>Hapus</button>
-                                    </form>
+                                    <button 
+                                        onClick={() => confirmDelete(p.id)}
+                                        className="btn btn-danger" 
+                                        style={{ padding: '5px 10px', fontSize: '0.8em' }}
+                                    >
+                                        Hapus
+                                    </button>
                                 </td>
                             </tr>
                             ))
@@ -90,6 +113,16 @@ export default function ParticipantsClient({ initialParticipants, resetAction, d
                 </table>
             </div>
       </div>
+      
+      <Modal 
+        isOpen={isDeleteModalOpen}
+        title="Konfirmasi Hapus Peserta"
+        message="Yakin ingin menghapus peserta ini? Tindakan ini tidak dapat dibatalkan."
+        onConfirm={executeDelete}
+        onCancel={() => setIsDeleteModalOpen(false)}
+        confirmText="Ya, Hapus"
+        isDanger={true}
+      />
     </>
   );
 }
