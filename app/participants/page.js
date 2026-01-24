@@ -1,5 +1,6 @@
 import prisma from '../../lib/prisma';
 import ParticipantsClient from './ParticipantsClient';
+import { revalidatePath } from 'next/cache';
 
 export const dynamic = 'force-dynamic';
 
