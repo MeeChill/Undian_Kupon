@@ -5,14 +5,10 @@ export default function LogoutButton() {
   return (
     <button 
         onClick={() => logout()} 
+        className="btn btn-danger"
         style={{ 
-            background: 'none', 
-            border: 'none', 
-            color: 'white', 
-            cursor: 'pointer', 
-            textDecoration: 'underline',
-            fontSize: '1rem',
-            marginLeft: '15px'
+            fontSize: '0.875rem',
+            padding: '0.4rem 1rem'
         }}
     >
       Keluar
