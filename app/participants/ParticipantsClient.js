@@ -49,16 +49,14 @@ export default function ParticipantsClient({ initialParticipants, resetAction, d
                         <option value="4">RT 04</option>
                     </select>
                     
-                    {filterRT !== 'all' && (
-                        <Link 
-                            href={`/participants/print?rt=${filterRT}`} 
-                            target="_blank"
-                            className="btn"
-                            style={{ backgroundColor: '#27ae60', textDecoration: 'none' }}
-                        >
-                            🖨️ Cetak Kupon RT {filterRT}
-                        </Link>
-                    )}
+                    <Link 
+                        href={`/participants/print?rt=${filterRT}`} 
+                        target="_blank"
+                        className="btn"
+                        style={{ backgroundColor: '#27ae60', textDecoration: 'none' }}
+                    >
+                        {filterRT === 'all' ? '🖨️ Cetak Semua Kupon' : `🖨️ Cetak Kupon RT ${filterRT}`}
+                    </Link>
 
                     <ResetButton onReset={resetAction} filterRT={filterRT} />
                 </div>

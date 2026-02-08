@@ -1,16 +1,32 @@
 import prisma from '../../../lib/prisma';
 import QRCode from 'qrcode';
 
+import PrintToolbar from './PrintToolbar';
+
 export default async function PrintRTPage({ searchParams }) {
-  const rt = parseInt(searchParams.rt);
-  
-  if (!rt || isNaN(rt)) {
-      return <div>Parameter RT tidak valid.</div>;
+  const rtParam = searchParams.rt;
+  let whereClause = {};
+  let title = "Semua RT";
+  let filename = "kupon-semua-rt.pdf";
+
+  if (rtParam && rtParam !== 'all') {
+      const rt = parseInt(rtParam);
+      if (isNaN(rt)) {
+          return <div>Parameter RT tidak valid.</div>;
+      }
+      whereClause = { rt };
+      title = `RT ${rt}`;
+      filename = `kupon-rt-${rt}.pdf`;
+  } else if (!rtParam) {
+       return <div>Parameter RT tidak valid.</div>;
   }
 
   const participants = await prisma.participant.findMany({
-    where: { rt },
-    orderBy: { luckyNumber: 'asc' }
+    where: whereClause,
+    orderBy: [
+        { rt: 'asc' },
+        { luckyNumber: 'asc' }
+    ]
   });
 
   // Generate QR Codes
@@ -27,12 +43,11 @@ export default async function PrintRTPage({ searchParams }) {
 
   return (
     <div className="print-container">
-      <h1 className="no-print" style={{ textAlign: 'center' }}>Cetak Kupon RT {rt}</h1>
-      <div className="no-print" style={{ textAlign: 'center', marginBottom: '20px' }}>
-          <button onClick="window.print()" style={{ padding: '10px 20px', fontSize: '1.2em', cursor: 'pointer' }}>🖨️ KLIK UNTUK PRINT</button>
-      </div>
+      <h1 className="no-print" style={{ textAlign: 'center' }}>Cetak Kupon {title}</h1>
+      
+      <PrintToolbar filename={filename} />
 
-      <div className="coupon-grid">
+      <div id="coupon-content" className="coupon-grid">
         {participantsWithQR.map(p => (
             <div key={p.id} className="coupon-card">
                 <div className="coupon-header">
@@ -134,11 +149,6 @@ export default async function PrintRTPage({ searchParams }) {
             }
         }
       `}</style>
-      
-      {/* Script to enable print button */}
-      <script dangerouslySetInnerHTML={{__html: `
-        document.querySelector('button').addEventListener('click', () => window.print());
-      `}} />
     </div>
   );
 }
