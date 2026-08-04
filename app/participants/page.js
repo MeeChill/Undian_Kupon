@@ -73,10 +73,18 @@ async function deleteParticipant(formData) {
 async function resetAllParticipants(formData) {
   'use server';
   const rtFilter = formData.get('rt');
+  const statusFilter = formData.get('status');
+  const winnerFilter = formData.get('winner');
   
   const whereClause = {};
   if (rtFilter && rtFilter !== 'all') {
       whereClause.rt = parseInt(rtFilter);
+  }
+  if (statusFilter && statusFilter !== 'all') {
+      whereClause.status = statusFilter;
+  }
+  if (winnerFilter && winnerFilter !== 'all') {
+      whereClause.isWinner = winnerFilter === 'yes';
   }
 
   await prisma.participant.deleteMany({

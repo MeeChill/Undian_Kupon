@@ -23,7 +23,7 @@ export default function PrintToolbar({ filename = 'kupon.pdf' }) {
       filename:     filename,
       image:        { type: 'jpeg', quality: 0.98 },
       html2canvas:  { scale: 2, useCORS: true },
-      jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' }
     };
 
     try {

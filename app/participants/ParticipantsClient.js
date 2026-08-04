@@ -6,14 +6,26 @@ import Modal from '../../components/Modal';
 
 export default function ParticipantsClient({ initialParticipants, resetAction, deleteAction }) {
   const [filterRT, setFilterRT] = useState('all');
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [filterWinner, setFilterWinner] = useState('all');
   
   // Delete Modal State
   const [deleteId, setDeleteId] = useState(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
-  const filteredParticipants = filterRT === 'all' 
-    ? initialParticipants 
-    : initialParticipants.filter(p => p.rt.toString() === filterRT);
+  let filteredParticipants = initialParticipants;
+
+  if (filterRT !== 'all') {
+      filteredParticipants = filteredParticipants.filter(p => p.rt.toString() === filterRT);
+  }
+
+  if (filterStatus !== 'all') {
+      filteredParticipants = filteredParticipants.filter(p => p.status === filterStatus);
+  }
+
+  if (filterWinner !== 'all') {
+      filteredParticipants = filteredParticipants.filter(p => (filterWinner === 'yes' ? p.isWinner : !p.isWinner));
+  }
 
   const confirmDelete = (id) => {
       setDeleteId(id);
@@ -48,6 +60,26 @@ export default function ParticipantsClient({ initialParticipants, resetAction, d
                         <option value="3">RT 03</option>
                         <option value="4">RT 04</option>
                     </select>
+
+                    <select 
+                        value={filterStatus} 
+                        onChange={(e) => setFilterStatus(e.target.value)}
+                        style={{ padding: '8px', borderRadius: '5px' }}
+                    >
+                        <option value="all">Semua Kehadiran</option>
+                        <option value="present">Hadir</option>
+                        <option value="registered">Belum Hadir</option>
+                    </select>
+
+                    <select 
+                        value={filterWinner} 
+                        onChange={(e) => setFilterWinner(e.target.value)}
+                        style={{ padding: '8px', borderRadius: '5px' }}
+                    >
+                        <option value="all">Semua Pemenang</option>
+                        <option value="yes">Sudah Menang</option>
+                        <option value="no">Belum Menang</option>
+                    </select>
                     
                     <Link 
                         href={`/participants/print?rt=${filterRT}`} 
@@ -58,7 +90,12 @@ export default function ParticipantsClient({ initialParticipants, resetAction, d
                         {filterRT === 'all' ? '🖨️ Cetak Semua Kupon' : `🖨️ Cetak Kupon RT ${filterRT}`}
                     </Link>
 
-                    <ResetButton onReset={resetAction} filterRT={filterRT} />
+                    <ResetButton 
+                        onReset={resetAction} 
+                        filterRT={filterRT} 
+                        filterStatus={filterStatus} 
+                        filterWinner={filterWinner} 
+                    />
                 </div>
             </div>
             

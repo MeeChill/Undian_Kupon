@@ -38,6 +38,23 @@ body {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  position: relative;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-image: url('/Logo_RW-removebg-preview.png');
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: 40%;
+  opacity: 0.08;
+  z-index: -1;
+  pointer-events: none;
 }
 
 /* Layout */
@@ -81,6 +98,23 @@ header {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+}
+
+.brand-logos {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.brand-logo {
+  height: 3.5rem;
+  width: auto;
+  border-radius: var(--radius-sm);
+  object-fit: contain;
+}
+
+.brand-text {
+  display: inline-block;
 }
 
 nav {

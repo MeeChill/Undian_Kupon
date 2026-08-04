@@ -18,7 +18,11 @@ export default async function RootLayout({ children }) {
             <header>
                 <div className="navbar">
                     <Link href="/" className="brand">
-                        🎉 Jalan Santai RW 04
+                        <div className="brand-logos">
+                            <img src="/Logo_KarangTaruna-removebg-preview.png" alt="Logo Karang Taruna" className="brand-logo" />
+                            <img src="/Logo_RW-removebg-preview.png" alt="Logo RW" className="brand-logo" />
+                        </div>
+                        <span className="brand-text">Jalan Santai RW 04</span>
                     </Link>
                     <nav>
                         <Link href="/">Dashboard</Link>
