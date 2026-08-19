@@ -4,10 +4,31 @@ import { useEffect, useState, useRef } from 'react';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import { verifyCoupon } from './actions';
 
-export default function QRScanner() {
+export default function QRScanner({ session }) {
   const [toast, setToast] = useState(null);
+  const [manualInput, setManualInput] = useState('');
+  const [manualLoading, setManualLoading] = useState(false);
   const scannerRef = useRef(null);
   const isProcessing = useRef(false);
+  const toastTimeoutRef = useRef(null);
+
+  const showToast = (nextToast, duration = 1800) => {
+    if (toastTimeoutRef.current) {
+      clearTimeout(toastTimeoutRef.current);
+      toastTimeoutRef.current = null;
+    }
+
+    if (!nextToast) {
+      setToast(null);
+      return;
+    }
+
+    setToast(nextToast);
+    toastTimeoutRef.current = setTimeout(() => {
+      setToast(null);
+      toastTimeoutRef.current = null;
+    }, duration);
+  };
 
   useEffect(() => {
     // Small timeout to ensure DOM is ready
@@ -40,7 +61,7 @@ export default function QRScanner() {
                 if (!scannerRef.current) return;
                 
                 isProcessing.current = false;
-                setToast(null);
+                showToast(null);
                 
                 try {
                     scanner.resume();
@@ -58,6 +79,10 @@ export default function QRScanner() {
 
     return () => {
         clearTimeout(timer);
+        if (toastTimeoutRef.current) {
+          clearTimeout(toastTimeoutRef.current);
+          toastTimeoutRef.current = null;
+        }
         if (scannerRef.current) {
             try {
                 // Use a local variable to capture the current scanner instance
@@ -78,25 +103,91 @@ export default function QRScanner() {
         const res = await verifyCoupon(text);
         
         if (res.success) {
-            setToast({
+            showToast({
                 type: 'success',
                 title: 'VERIFIKASI SUKSES',
                 message: `${res.participant.name} - RT ${res.participant.rt}`
             });
         } else {
-            setToast({
+            showToast({
                 type: 'error',
                 title: 'GAGAL',
                 message: res.message
-            });
+            }, 2200);
         }
       } catch (err) {
-        setToast({ type: 'error', title: 'ERROR', message: 'Kesalahan sistem' });
+        showToast({ type: 'error', title: 'ERROR', message: 'Kesalahan sistem' }, 2200);
       }
+  }
+
+  async function handleManualSubmit(e) {
+    e.preventDefault();
+    if (!manualInput.trim()) {
+      setToast({ type: 'error', title: 'GAGAL', message: 'Masukkan 3 digit terakhir nomor undian.' });
+      return;
+    }
+
+    setManualLoading(true);
+    try {
+      const res = await verifyCoupon(manualInput, {
+        type: 'manual',
+        scannerRt: session?.rt,
+      });
+
+      if (res.success) {
+        showToast({
+          type: 'success',
+          title: 'VERIFIKASI SUKSES',
+          message: `${res.participant.name} - RT ${res.participant.rt}`,
+        });
+        setManualInput('');
+      } else {
+        showToast({ type: 'error', title: 'GAGAL', message: res.message }, 2200);
+      }
+    } catch (err) {
+      showToast({ type: 'error', title: 'ERROR', message: 'Kesalahan sistem' }, 2200);
+    } finally {
+      setManualLoading(false);
+    }
   }
 
   return (
     <div className="scanner-container">
+      {session?.rt ? (
+        <div className="scanner-info">
+          <strong>Scanner RT {String(session.rt).padStart(2, '0')}</strong>
+          <div>Prefix otomatis: {`${String(session.rt).padStart(2, '0')}040`}</div>
+        </div>
+      ) : (
+        <div className="scanner-info">
+          <strong>Mode manual</strong>
+          <div>Masukkan 3 digit terakhir atau 8 digit penuh.</div>
+        </div>
+      )}
+
+      <form className="manual-form" onSubmit={handleManualSubmit}>
+        <label htmlFor="manual-number">Input nomor undian</label>
+        <div className="manual-input-row">
+          <input
+            id="manual-number"
+            type="text"
+            inputMode="numeric"
+            maxLength={3}
+            value={manualInput}
+            onChange={(e) => setManualInput(e.target.value.replace(/\D/g, ''))}
+            placeholder={session?.rt ? 'Contoh: 123' : '3 digit atau 8 digit'}
+          />
+          <button type="submit" className="btn" disabled={manualLoading}>
+            {manualLoading ? 'Memproses...' : 'Verifikasi'}
+          </button>
+        </div>
+        <small>
+          {session?.rt
+            ? `Scanner RT ${String(session.rt).padStart(2, '0')} hanya perlu memasukkan 3 digit terakhir, karena prefix otomatis adalah ${String(session.rt).padStart(2, '0')}040.`
+            : 'Masukkan 3 digit terakhir atau 8 digit penuh.'}
+        </small>
+      </form>
+
       <div id="reader"></div>
       
       {toast && (
@@ -115,6 +206,36 @@ export default function QRScanner() {
             max-width: 500px;
             margin: 0 auto;
             position: relative;
+        }
+        .scanner-info {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 12px 14px;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+        .manual-form {
+            margin-bottom: 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .manual-form label {
+            font-weight: 600;
+        }
+        .manual-input-row {
+            display: flex;
+            gap: 8px;
+        }
+        .manual-input-row input {
+            flex: 1;
+            padding: 10px 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+        }
+        .manual-input-row button {
+            white-space: nowrap;
         }
         .toast {
             position: fixed;

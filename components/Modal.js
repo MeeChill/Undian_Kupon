@@ -43,6 +43,8 @@ export default function Modal({ isOpen, title, message, onConfirm, onCancel, con
         .modal-overlay.open { opacity: 1; }
         
         .modal-content {
+          position: relative;
+          overflow: hidden;
           background: white;
           padding: 2rem;
           border-radius: var(--radius-lg);

@@ -1,7 +1,30 @@
 'use server'
 import prisma from '../../lib/prisma';
 
-export async function verifyCoupon(qrCodeText) {
+function buildLuckyNumber(rawValue, scannerRt) {
+  const trimmed = String(rawValue || '').trim();
+
+  if (!trimmed) {
+    throw new Error('Nomor undian wajib diisi.');
+  }
+
+  if (/^\d{8}$/.test(trimmed)) {
+    return trimmed;
+  }
+
+  if (/^\d{3}$/.test(trimmed) && scannerRt) {
+    const prefix = `${String(scannerRt).padStart(2, '0')}040`;
+    return `${prefix}${trimmed}`;
+  }
+
+  if (/^\d{3}$/.test(trimmed)) {
+    throw new Error('Scanner belum memiliki RT yang terdaftar.');
+  }
+
+  throw new Error('Format nomor undian tidak valid.');
+}
+
+export async function verifyCoupon(qrCodeText, options = {}) {
   let luckyNumber = qrCodeText;
   
   // Try to extract number from URL if it's a URL
@@ -17,6 +40,14 @@ export async function verifyCoupon(qrCodeText) {
       }
   } catch (e) {
       // Not a valid URL, use original text
+  }
+
+  if (options.type === 'manual') {
+    try {
+      luckyNumber = buildLuckyNumber(qrCodeText, options.scannerRt);
+    } catch (error) {
+      return { success: false, message: error.message };
+    }
   }
 
   const participant = await prisma.participant.findUnique({ where: { luckyNumber } });

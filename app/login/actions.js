@@ -1,32 +1,36 @@
 'use server'
 
-import { createSession, deleteSession } from '@/lib/session';
+import { createSession, deleteSession, getScannerRtFromUsername } from '@/lib/session';
 import { redirect } from 'next/navigation';
 import prisma from '@/lib/prisma';
 
 export async function login(prevState, formData) {
-  const username = formData.get('username');
-  const password = formData.get('password');
+  const username = String(formData.get('username') ?? '').trim();
+  const password = String(formData.get('password') ?? '').trim();
 
-  // Verify user against database
   const user = await prisma.user.findUnique({
     where: { username }
   });
 
   if (user && user.password === password) {
-    // Check password (In production use bcrypt/argon2 to verify hash)
-    await createSession(user.username, user.role);
+    await createSession({
+      id: user.id,
+      username: user.username,
+      role: user.role,
+      rt: getScannerRtFromUsername(user.username),
+    });
 
-    // Redirect based on role
-    if (user.role === 'admin') {
-        redirect('/');
-    } else {
-        redirect('/scan');
-    }
+    return {
+      success: true,
+      error: '',
+      redirectTo: user.role === 'admin' ? '/' : '/scan',
+    };
   }
 
   return {
-    error: 'Username atau password salah!'
+    success: false,
+    error: 'Username atau password salah!',
+    redirectTo: null,
   };
 }
 
