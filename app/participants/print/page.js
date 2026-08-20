@@ -47,7 +47,7 @@ const SPONSOR_LOGOS = [
   '/Logo_Rt0.png',
   '/Logo_Rt2.jpeg',
   '/logo_rekrut.png',
-  '/Logo_RW.jpeg',
+  '/Logo_rw.jpeg',
   '/Logo_KarangTaruna-removebg-preview.png',
 ];
 
@@ -219,7 +219,10 @@ export default async function PrintRTPage({ searchParams }) {
 
         .wb-sunburst {
             position: absolute;
-            inset: 0;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            left: 0;
             width: 100%;
             height: 100%;
             object-fit: cover;
@@ -403,7 +406,10 @@ export default async function PrintRTPage({ searchParams }) {
         .wb-stub::before {
             content: '';
             position: absolute;
-            inset: 0;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            left: 0;
             background-image: url('/Logo_RW-removebg-preview.png');
             background-size: cover;
             background-position: center;
@@ -488,10 +494,13 @@ export default async function PrintRTPage({ searchParams }) {
             border: 1px solid var(--accent);
             padding: 3px;
             font-size: 12px;
+            line-height: 14px;   /* baru */
+            min-height: 14px;    /* baru */
             font-weight: bold;
             text-align: center;
             border-radius: 2px;
             letter-spacing: 0.5px;
+            box-sizing: content-box;  /* baru — pastikan padding ga makan min-height */
         }
 
         @media print {
