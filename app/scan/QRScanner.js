@@ -1,141 +1,181 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import { Html5QrcodeScanner, Html5QrcodeSupportedFormats } from 'html5-qrcode';
+import QrScanner from 'qr-scanner';
 import { verifyCoupon } from './actions';
+import Swal from 'sweetalert2';
+
+// Toast mixin: notif kecil di pojok, auto-hilang, gak nutupin layar
+const Toast = Swal.mixin({
+  toast: true,
+  position: 'top-end',
+  showConfirmButton: false,
+  timer: 2000,
+  timerProgressBar: true,
+  didOpen: (toast) => {
+    toast.onmouseenter = Swal.stopTimer;
+    toast.onmouseleave = Swal.resumeTimer;
+  }
+});
 
 export default function QRScanner({ session }) {
-  const [toast, setToast] = useState(null);
   const [manualInput, setManualInput] = useState('');
   const [manualLoading, setManualLoading] = useState(false);
+  const [zoomLevel, setZoomLevel] = useState(1);
+  const [zoomCapable, setZoomCapable] = useState(false);
+  const [zoomRange, setZoomRange] = useState({ min: 1, max: 3, step: 0.1 });
+  const videoRef = useRef(null);
   const scannerRef = useRef(null);
+  const trackRef = useRef(null);
   const isProcessing = useRef(false);
-  const toastTimeoutRef = useRef(null);
-
-  const showToast = (nextToast, duration = 1800) => {
-    if (toastTimeoutRef.current) {
-      clearTimeout(toastTimeoutRef.current);
-      toastTimeoutRef.current = null;
-    }
-
-    if (!nextToast) {
-      setToast(null);
-      return;
-    }
-
-    setToast(nextToast);
-    toastTimeoutRef.current = setTimeout(() => {
-      setToast(null);
-      toastTimeoutRef.current = null;
-    }, duration);
-  };
 
   useEffect(() => {
     // Small timeout to ensure DOM is ready
     const timer = setTimeout(() => {
-        if (scannerRef.current) return;
+        if (!videoRef.current || scannerRef.current) return;
 
-        const scanner = new Html5QrcodeScanner(
-          "reader",
-          { 
-              fps: 15,
-              qrbox: { width: 350, height: 350 },
-              formatsToSupport: [ Html5QrcodeSupportedFormats.QR_CODE ],
-              videoConstraints: {
-                  facingMode: "environment",
-                  width: { ideal: 1920, min: 1280 },
-                  height: { ideal: 1080, min: 720 }
-              },
-              experimentalFeatures: {
-                  useBarCodeDetectorIfSupported: true
-              }
-          },
-          false
+        QrScanner.WORKER_PATH = '/qr-scanner-worker.min.js';
+
+        const scanner = new QrScanner(
+            videoRef.current,
+            (result) => {
+                if (isProcessing.current) return;
+                isProcessing.current = true;
+
+                const decodedText = result.data;
+
+                try {
+                    scanner.stop();
+                } catch (e) {
+                    console.warn("Failed to stop scanner", e);
+                }
+
+                handleScan(decodedText).then(() => {
+                    // Resume scanning after 2.5 seconds
+                    setTimeout(() => {
+                        isProcessing.current = false;
+                        if (scannerRef.current) {
+                            scannerRef.current.start().catch(e => console.warn("Failed to resume scanner", e));
+                        }
+                    }, 2500);
+                });
+            },
+            {
+                returnDetailedScanResult: true,
+                highlightScanRegion: true,
+                highlightCodeOutline: true,
+                maxScansPerSecond: 10,
+                preferredCamera: 'environment', // paksa kamera belakang, gak mirror
+            }
         );
+
         scannerRef.current = scanner;
 
-        scanner.render(onScanSuccess, onScanFailure);
+        scanner.start()
+          .then(() => applyHighResAndFocus())
+          .catch(e => console.warn("Failed to start scanner", e));
 
-        function onScanSuccess(decodedText) {
-          if (isProcessing.current) return;
-          isProcessing.current = true;
-          
-          try {
-            scanner.pause(true);
-          } catch (e) {
-            console.warn("Failed to pause scanner", e);
-          }
-
-          handleScan(decodedText).then(() => {
-             // Resume scanning after 2 seconds
-             setTimeout(() => {
-                // Check if scanner is still active/mounted
-                if (!scannerRef.current) return;
-                
-                isProcessing.current = false;
-                showToast(null);
-                
-                try {
-                    scanner.resume();
-                } catch (e) {
-                    console.warn("Failed to resume scanner", e);
-                    // If resume fails, it might be in a weird state, try to re-render or reload page?
-                    // For now just log it.
-                }
-             }, 2000);
-          });
-        }
-
-        function onScanFailure(error) {}
     }, 100);
 
     return () => {
         clearTimeout(timer);
-        if (toastTimeoutRef.current) {
-          clearTimeout(toastTimeoutRef.current);
-          toastTimeoutRef.current = null;
-        }
         if (scannerRef.current) {
             try {
-                // Use a local variable to capture the current scanner instance
-                const scannerToClear = scannerRef.current;
-                scannerToClear.clear().catch(error => {
-                    console.warn("Failed to clear html5-qrcode scanner", error);
-                });
+                scannerRef.current.stop();
+                scannerRef.current.destroy();
             } catch (e) {
                 console.warn("Error clearing scanner", e);
             }
             scannerRef.current = null;
         }
+        trackRef.current = null;
     };
   }, []);
+
+  // Maksa resolusi tinggi + continuous autofocus + baca capability zoom
+  async function applyHighResAndFocus() {
+    try {
+        const track = videoRef.current?.srcObject?.getVideoTracks?.()[0];
+        if (!track) return;
+        trackRef.current = track;
+
+        const capabilities = track.getCapabilities?.() || {};
+        const advanced = {};
+
+        if (capabilities.width && capabilities.height) {
+            advanced.width = { ideal: Math.min(capabilities.width.max, 3840) };
+            advanced.height = { ideal: Math.min(capabilities.height.max, 2160) };
+        }
+        if (capabilities.focusMode?.includes('continuous')) {
+            advanced.focusMode = 'continuous';
+        }
+
+        if (capabilities.zoom) {
+            setZoomCapable(true);
+            setZoomRange({
+                min: capabilities.zoom.min,
+                max: capabilities.zoom.max,
+                step: capabilities.zoom.step || 0.1,
+            });
+            // auto zoom dikit biar QR kecil lebih gede di frame
+            const targetZoom = Math.min(capabilities.zoom.max, capabilities.zoom.min + 1.5);
+            advanced.zoom = targetZoom;
+            setZoomLevel(targetZoom);
+        }
+
+        if (Object.keys(advanced).length > 0) {
+            await track.applyConstraints({ advanced: [advanced] });
+        }
+    } catch (e) {
+        console.warn('Gagal apply advanced constraints', e);
+    }
+  }
+
+  // Handler slider zoom manual (dipakai kalau device support native zoom)
+  async function handleZoomChange(value) {
+    setZoomLevel(value);
+    if (trackRef.current) {
+        try {
+            await trackRef.current.applyConstraints({ advanced: [{ zoom: value }] });
+        } catch (e) {
+            console.warn('Gagal set zoom', e);
+        }
+    }
+  }
+
+  // Fallback CSS zoom kalau device gak support native zoom capability
+  const cssZoomStyle = !zoomCapable ? { transform: `scale(${zoomLevel})`, transformOrigin: 'center' } : {};
 
   async function handleScan(text) {
       try {
         const res = await verifyCoupon(text);
-        
+
         if (res.success) {
-            showToast({
-                type: 'success',
-                title: 'VERIFIKASI SUKSES',
-                message: `${res.participant.name} - RT ${res.participant.rt}`
+            Toast.fire({
+                icon: 'success',
+                title: `${res.participant.name} — RT ${res.participant.rt}`
             });
         } else {
-            showToast({
-                type: 'error',
-                title: 'GAGAL',
-                message: res.message
-            }, 2200);
+            Toast.fire({
+                icon: 'error',
+                title: res.message || 'Verifikasi gagal'
+            });
         }
       } catch (err) {
-        showToast({ type: 'error', title: 'ERROR', message: 'Kesalahan sistem' }, 2200);
+        Toast.fire({
+            icon: 'error',
+            title: 'Kesalahan sistem'
+        });
       }
   }
 
   async function handleManualSubmit(e) {
     e.preventDefault();
     if (!manualInput.trim()) {
-      setToast({ type: 'error', title: 'GAGAL', message: 'Masukkan 3 digit terakhir nomor undian.' });
+      Toast.fire({
+          icon: 'error',
+          title: 'Masukkan 3 digit terakhir nomor undian.'
+      });
       return;
     }
 
@@ -147,17 +187,22 @@ export default function QRScanner({ session }) {
       });
 
       if (res.success) {
-        showToast({
-          type: 'success',
-          title: 'VERIFIKASI SUKSES',
-          message: `${res.participant.name} - RT ${res.participant.rt}`,
+        Toast.fire({
+          icon: 'success',
+          title: `${res.participant.name} — RT ${res.participant.rt}`
         });
         setManualInput('');
       } else {
-        showToast({ type: 'error', title: 'GAGAL', message: res.message }, 2200);
+        Toast.fire({
+          icon: 'error',
+          title: res.message || 'Verifikasi gagal'
+        });
       }
     } catch (err) {
-      showToast({ type: 'error', title: 'ERROR', message: 'Kesalahan sistem' }, 2200);
+      Toast.fire({
+          icon: 'error',
+          title: 'Kesalahan sistem'
+      });
     } finally {
       setManualLoading(false);
     }
@@ -200,17 +245,24 @@ export default function QRScanner({ session }) {
         </small>
       </form>
 
-      <div id="reader"></div>
-      
-      {toast && (
-          <div className={`toast toast-${toast.type}`}>
-              <div className="toast-icon">{toast.type === 'success' ? '✅' : '❌'}</div>
-              <div>
-                  <strong>{toast.title}</strong>
-                  <div>{toast.message}</div>
-              </div>
-          </div>
-      )}
+      <div className="video-wrapper">
+        <video ref={videoRef} className="qr-video" style={cssZoomStyle}></video>
+      </div>
+
+      <div className="zoom-control">
+        <label htmlFor="zoom-slider">
+          Zoom kamera {zoomCapable ? '(native)' : '(digital)'}
+        </label>
+        <input
+          id="zoom-slider"
+          type="range"
+          min={zoomRange.min}
+          max={zoomRange.max}
+          step={zoomRange.step}
+          value={zoomLevel}
+          onChange={(e) => handleZoomChange(parseFloat(e.target.value))}
+        />
+      </div>
 
       <style jsx>{`
         .scanner-container {
@@ -249,35 +301,29 @@ export default function QRScanner({ session }) {
         .manual-input-row button {
             white-space: nowrap;
         }
-        .toast {
-            position: fixed;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            padding: 15px 25px;
-            border-radius: 50px;
-            color: white;
-            font-weight: bold;
+        .video-wrapper {
+            width: 100%;
+            border-radius: 8px;
+            overflow: hidden;
+            background-color: #000;
+        }
+        .qr-video {
+            width: 100%;
+            display: block;
+            transition: transform 0.1s ease-out;
+        }
+        .zoom-control {
+            margin-top: 10px;
             display: flex;
-            align-items: center;
-            gap: 15px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-            z-index: 9999;
-            animation: slideDown 0.3s ease-out;
-            min-width: 300px;
+            flex-direction: column;
+            gap: 4px;
         }
-        .toast-success { background-color: #2ecc71; }
-        .toast-error { background-color: #e74c3c; }
-        .toast-icon { font-size: 1.5em; }
-
-        @keyframes slideDown {
-            from { top: -100px; }
-            to { top: 20px; }
+        .zoom-control label {
+            font-size: 13px;
+            color: #475569;
         }
-      `}</style>
-      <style jsx global>{`
-        #reader__scan_region {
-            background: white;
+        .zoom-control input[type="range"] {
+            width: 100%;
         }
       `}</style>
     </div>
