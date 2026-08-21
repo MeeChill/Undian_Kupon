@@ -62,10 +62,28 @@ export default function QRScanner({ session }) {
             },
             {
                 returnDetailedScanResult: true,
-                highlightScanRegion: true,
+                highlightScanRegion: false, // matiin bawaan, kita pake bracket CSS statis biar gak nge-restrict area scan
                 highlightCodeOutline: true,
                 maxScansPerSecond: 10,
                 preferredCamera: 'environment', // paksa kamera belakang, gak mirror
+                calculateScanRegion: (video) => {
+                    // Scan SELURUH frame video, bukan cuma kotak tengah.
+                    // Jadi QR gak wajib align persis ke bracket, posisi/jarak bebas
+                    // asal masih kefoto & cukup fokus.
+                    const smallestDimension = Math.min(video.videoWidth, video.videoHeight);
+                    const scanRegionSize = Math.round(smallestDimension); // full, gak di-crop
+                    return {
+                        x: 0,
+                        y: 0,
+                        width: video.videoWidth,
+                        height: video.videoHeight,
+                        // downscale buat performa, bukan buat batasin area
+                        downScaledWidth: Math.min(scanRegionSize, 900),
+                        downScaledHeight: Math.round(
+                            Math.min(scanRegionSize, 900) * (video.videoHeight / video.videoWidth)
+                        ),
+                    };
+                },
             }
         );
 
@@ -247,7 +265,19 @@ export default function QRScanner({ session }) {
 
       <div className="video-wrapper">
         <video ref={videoRef} className="qr-video" style={cssZoomStyle}></video>
+        {/* Bracket ini cuma visual guide, TIDAK membatasi area scan sebenarnya.
+            Area scan sudah full-frame lewat calculateScanRegion di atas. */}
+        <div className="scan-guide">
+          <span className="corner corner-tl"></span>
+          <span className="corner corner-tr"></span>
+          <span className="corner corner-bl"></span>
+          <span className="corner corner-br"></span>
+        </div>
       </div>
+
+      <p className="scan-hint">
+        Arahkan QR ke area kamera — tidak perlu pas di dalam kotak, boleh dari jarak berapapun asal masih fokus.
+      </p>
 
       <div className="zoom-control">
         <label htmlFor="zoom-slider">
@@ -306,11 +336,53 @@ export default function QRScanner({ session }) {
             border-radius: 8px;
             overflow: hidden;
             background-color: #000;
+            position: relative;
         }
         .qr-video {
             width: 100%;
             display: block;
             transition: transform 0.1s ease-out;
+        }
+        .scan-guide {
+            position: absolute;
+            inset: 12%;
+            pointer-events: none;
+        }
+        .corner {
+            position: absolute;
+            width: 28px;
+            height: 28px;
+            border: 3px solid #eab308;
+        }
+        .corner-tl {
+            top: 0; left: 0;
+            border-right: none;
+            border-bottom: none;
+            border-top-left-radius: 6px;
+        }
+        .corner-tr {
+            top: 0; right: 0;
+            border-left: none;
+            border-bottom: none;
+            border-top-right-radius: 6px;
+        }
+        .corner-bl {
+            bottom: 0; left: 0;
+            border-right: none;
+            border-top: none;
+            border-bottom-left-radius: 6px;
+        }
+        .corner-br {
+            bottom: 0; right: 0;
+            border-left: none;
+            border-top: none;
+            border-bottom-right-radius: 6px;
+        }
+        .scan-hint {
+            font-size: 13px;
+            color: #64748b;
+            text-align: center;
+            margin-top: 8px;
         }
         .zoom-control {
             margin-top: 10px;
