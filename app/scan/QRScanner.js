@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import { Html5QrcodeScanner } from 'html5-qrcode';
+import { Html5QrcodeScanner, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { verifyCoupon } from './actions';
 
 export default function QRScanner({ session }) {
@@ -37,7 +37,19 @@ export default function QRScanner({ session }) {
 
         const scanner = new Html5QrcodeScanner(
           "reader",
-          { fps: 10, qrbox: { width: 250, height: 250 } },
+          { 
+              fps: 15,
+              qrbox: { width: 350, height: 350 },
+              formatsToSupport: [ Html5QrcodeSupportedFormats.QR_CODE ],
+              videoConstraints: {
+                  facingMode: "environment",
+                  width: { ideal: 1920, min: 1280 },
+                  height: { ideal: 1080, min: 720 }
+              },
+              experimentalFeatures: {
+                  useBarCodeDetectorIfSupported: true
+              }
+          },
           false
         );
         scannerRef.current = scanner;
@@ -172,10 +184,10 @@ export default function QRScanner({ session }) {
             id="manual-number"
             type="text"
             inputMode="numeric"
-            maxLength={3}
+            maxLength={8}
             value={manualInput}
             onChange={(e) => setManualInput(e.target.value.replace(/\D/g, ''))}
-            placeholder={session?.rt ? 'Contoh: 123' : '3 digit atau 8 digit'}
+            placeholder={session?.rt ? 'Contoh: 123 (3 digit) atau 8 digit' : '3 digit atau 8 digit'}
           />
           <button type="submit" className="btn" disabled={manualLoading}>
             {manualLoading ? 'Memproses...' : 'Verifikasi'}

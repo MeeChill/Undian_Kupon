@@ -25,15 +25,13 @@ function buildLuckyNumber(rawValue, scannerRt) {
 }
 
 export async function verifyCoupon(qrCodeText, options = {}) {
-  let luckyNumber = qrCodeText;
+  let luckyNumber = String(qrCodeText || '').trim();
   
   // Try to extract number from URL if it's a URL
   try {
-      if (qrCodeText.startsWith('http')) {
-        const url = new URL(qrCodeText);
-        const parts = url.pathname.split('/');
-        // Assuming path is like /scan/[number]
-        // parts will be ['', 'scan', 'NUMBER']
+      if (luckyNumber.startsWith('http')) {
+        const url = new URL(luckyNumber);
+        const parts = url.pathname.split('/').filter(Boolean);
         if (parts.length > 0) {
             luckyNumber = parts[parts.length - 1];
         }
