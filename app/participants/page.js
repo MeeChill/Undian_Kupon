@@ -87,8 +87,12 @@ async function resetAllParticipants(formData) {
       whereClause.isWinner = winnerFilter === 'yes';
   }
 
-  await prisma.participant.deleteMany({
-      where: whereClause
+  await prisma.participant.updateMany({
+      where: whereClause,
+      data: {
+          status: 'registered',
+          isWinner: false
+      }
   });
   
   revalidatePath('/participants');

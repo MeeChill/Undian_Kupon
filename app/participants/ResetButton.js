@@ -16,8 +16,8 @@ export default function ResetButton({ onReset, filterRT = 'all', filterStatus = 
   const filterString = filterDesc.length > 0 ? filterDesc.join(', ') : 'Semua Data';
 
   const message = filterDesc.length === 0
-    ? 'Yakin ingin menghapus SEMUA data peserta? Tindakan ini tidak dapat dibatalkan.' 
-    : `Yakin ingin menghapus data peserta dengan filter (${filterString})? Tindakan ini tidak dapat dibatalkan.`;
+    ? 'Yakin ingin me-reset status kehadiran dan status pemenang SEMUA data peserta?' 
+    : `Yakin ingin me-reset status peserta dengan filter (${filterString})?`;
 
   const handleConfirm = () => {
       setIsModalOpen(false);
@@ -36,7 +36,7 @@ export default function ResetButton({ onReset, filterRT = 'all', filterStatus = 
                 className="btn btn-danger" 
                 style={{ backgroundColor: '#c0392b' }}
             >
-                {filterDesc.length === 0 ? 'Reset Semua Data' : `Hapus (${filterString})`}
+                {filterDesc.length === 0 ? 'Reset Semua Status' : `Reset Status (${filterString})`}
             </button>
         </form>
         
@@ -46,8 +46,8 @@ export default function ResetButton({ onReset, filterRT = 'all', filterStatus = 
             message={message}
             onConfirm={handleConfirm}
             onCancel={() => setIsModalOpen(false)}
-            confirmText="Ya, Hapus Semua"
-            isDanger={true}
+            confirmText="Ya, Reset Status"
+            isDanger={false}
         />
     </>
   );
